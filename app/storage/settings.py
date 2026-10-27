@@ -4,7 +4,7 @@ THEMES = ("dark", "light")
 
 
 class Settings:
-    """Налаштування застосунку (поки що лише тема)."""
+    """Налаштування теми застосунку."""
 
     def __init__(self, json_file: JsonFile):
         self._file = json_file

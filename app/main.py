@@ -33,7 +33,7 @@ class CalculatorApp(App):
             history=self.history,
             theme=theme,
             open_history_callback=self.show_history,
-            toggle_theme_callback=self.toggle_theme,
+            select_theme_callback=self.select_theme,
             open_about_callback=self.show_about,
         )
         self.history_screen = HistoryScreen(
@@ -76,9 +76,13 @@ class CalculatorApp(App):
         self.calculator_screen.load_expression(entry.recall)
         self.show_calculator()
 
-    def toggle_theme(self):
-        self.user_settings.theme = "light" if self.user_settings.theme == "dark" else "dark"
-        theme = THEMES[self.user_settings.theme]
+    def select_theme(self, name):
+        """Застосовує вибрану тему до всіх екранів і зберігає її."""
+        if name == self.user_settings.theme:
+            return
+
+        self.user_settings.theme = name
+        theme = THEMES[name]
 
         Window.clearcolor = theme.background
         self.calculator_screen.apply_theme(theme)

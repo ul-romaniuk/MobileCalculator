@@ -1,10 +1,11 @@
-from kivy.graphics import Color, Ellipse, RoundedRectangle
+from kivy.graphics import Color, Rectangle, RoundedRectangle
 from kivy.metrics import dp, sp
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.button import Button
 from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.label import Label
 
+from ui import icons
 from ui.theme import ButtonStyle, pressed_variant
 
 
@@ -48,7 +49,7 @@ class RoundedButton(Button):
 
 
 class MenuButton(RoundedButton):
-    """Кнопка меню з трьома крапками. Крапки малюються, а не беруться зі шрифту."""
+    """Кнопка меню з трьома крапками (згладжені кружечки)."""
 
     DOT = dp(5)
     GAP = dp(7)
@@ -58,7 +59,7 @@ class MenuButton(RoundedButton):
 
         with self.canvas.after:
             self._dots_color = Color(*style.foreground)
-            self._dots = [Ellipse(size=(self.DOT, self.DOT)) for _ in range(3)]
+            self._dots = [Rectangle() for _ in range(3)]
 
         self.bind(pos=self._update_dots, size=self._update_dots)
         self._update_dots()
@@ -68,11 +69,82 @@ class MenuButton(RoundedButton):
         self._dots_color.rgba = style.foreground
 
     def _update_dots(self, *_):
-        center_x, center_y = self.center
+        size = icons.even_size(self.DOT + 2)
+        texture = icons.disc(size)
         step = self.DOT + self.GAP
 
         for index, dot in enumerate(self._dots):
-            dot.pos = (center_x - self.DOT / 2, center_y + (1 - index) * step - self.DOT / 2)
+            dot.texture = texture
+            dot.size = (size, size)
+            dot.pos = (
+                round(self.center_x - size / 2),
+                round(self.center_y + (1 - index) * step - size / 2),
+            )
+
+
+class ExpandButton(RoundedButton):
+    """Кнопка розкриття додаткових функцій: два квадрати і дві стрілки.
+
+    Значок згладжений (див. ui/icons.py) і бере колір зі стилю кнопки.
+    """
+
+    def __init__(self, style: ButtonStyle, **kwargs):
+        super().__init__(style, **kwargs)
+
+        with self.canvas.after:
+            self._icon_color = Color(*style.foreground)
+            self._icon = Rectangle()
+
+        self.bind(pos=self._update_icon, size=self._update_icon)
+        self._update_icon()
+
+    def apply_style(self, style: ButtonStyle):
+        super().apply_style(style)
+        self._icon_color.rgba = style.foreground
+
+    def _update_icon(self, *_):
+        size = icons.even_size(min(self.width, self.height) * 0.6)
+
+        self._icon.texture = icons.expand_icon(size)
+        self._icon.size = (size, size)
+        self._icon.pos = (round(self.center_x - size / 2), round(self.center_y - size / 2))
+
+
+class ChoiceButton(RoundedButton):
+    """Рядок меню вибору: текст ліворуч, індикатор праворуч.
+
+    Вибраний варіант позначається заповненим кружечком, невибраний порожнім.
+    """
+
+    RADIUS = dp(10)
+    EDGE = dp(26)  # відстань від правого краю до центра кружечка
+
+    def __init__(self, style: ButtonStyle, **kwargs):
+        super().__init__(style, **kwargs)
+        self._selected = False
+
+        with self.canvas.after:
+            self._mark_color = Color(0, 0, 0, 0)
+            self._mark = Rectangle()
+
+        self.bind(pos=self._update_mark, size=self._update_mark)
+        self._update_mark()
+
+    def set_indicator(self, selected, active_color, inactive_color):
+        """Заповнений кружечок для вибраного варіанта, порожній для решти."""
+        self._selected = selected
+        self._mark_color.rgba = active_color if selected else inactive_color
+        self._update_mark()
+
+    def _update_mark(self, *_):
+        size = icons.even_size(2 * self.RADIUS)
+
+        self._mark.texture = icons.disc(size) if self._selected else icons.ring(size)
+        self._mark.size = (size, size)
+        self._mark.pos = (
+            round(self.right - self.EDGE - size / 2),
+            round(self.center_y - size / 2),
+        )
 
 
 class SurfacePanel(BoxLayout):
@@ -95,10 +167,10 @@ class SurfacePanel(BoxLayout):
         self._shape.size = self.size
 
 
-class PopupMenu(FloatLayout):
-    """Меню в правому верхньому куті: затемнення екрана і список пунктів.
+class MenuOverlay(FloatLayout):
+    """Основа меню в правому верхньому куті: затемнення екрана і панель із рядками.
 
-    items - список пар (текст, функція). Дотик поза меню закриває його.
+    Дотик поза панеллю закриває меню.
     """
 
     WIDTH = dp(230)
@@ -106,7 +178,7 @@ class PopupMenu(FloatLayout):
     PADDING = dp(8)
     MARGIN = dp(16)
 
-    def __init__(self, theme, items, dismiss_callback, **kwargs):
+    def __init__(self, theme, row_count, dismiss_callback, **kwargs):
         super().__init__(**kwargs)
 
         scrim = Button(
@@ -121,9 +193,29 @@ class PopupMenu(FloatLayout):
             theme.surface,
             orientation="vertical",
             size_hint=(None, None),
-            size=(self.WIDTH, len(items) * self.ROW_HEIGHT + 2 * self.PADDING),
+            size=(self.WIDTH, row_count * self.ROW_HEIGHT + 2 * self.PADDING),
             padding=self.PADDING,
         )
+        self.add_widget(self.panel)
+        self.bind(pos=self._place_panel, size=self._place_panel)
+
+    @staticmethod
+    def _align_text(button, size):
+        button.text_size = (size[0] - dp(24), size[1])
+
+    def _place_panel(self, *_):
+        self.panel.right = self.x + self.width - self.MARGIN
+        self.panel.top = self.y + self.height - self.MARGIN
+
+
+class PopupMenu(MenuOverlay):
+    """Головне меню: список пунктів.
+
+    items - список пар (текст, функція). Після вибору меню закривається.
+    """
+
+    def __init__(self, theme, items, dismiss_callback, **kwargs):
+        super().__init__(theme, len(items), dismiss_callback, **kwargs)
         style = ButtonStyle(theme.surface, theme.text)
 
         for text, action in items:
@@ -139,21 +231,47 @@ class PopupMenu(FloatLayout):
             item.bind(on_release=lambda _button, a=action: self._choose(a, dismiss_callback))
             self.panel.add_widget(item)
 
-        self.add_widget(self.panel)
-        self.bind(pos=self._place_panel, size=self._place_panel)
-
-    @staticmethod
-    def _align_text(button, size):
-        button.text_size = (size[0] - dp(24), size[1])
-
     @staticmethod
     def _choose(action, dismiss_callback):
         dismiss_callback()  # спочатку закриваємо меню, потім виконуємо дію
         action()
 
-    def _place_panel(self, *_):
-        self.panel.right = self.x + self.width - self.MARGIN
-        self.panel.top = self.y + self.height - self.MARGIN
+
+class ChoiceMenu(MenuOverlay):
+    """Меню вибору одного варіанта (наприклад, теми).
+
+    Біля вибраного варіанта стоїть заповнений кружечок, біля решти порожній.
+    Меню лишається відкритим після вибору, а індикатор оновлюється.
+    """
+
+    def __init__(self, theme, options, selected, select_callback, dismiss_callback, **kwargs):
+        super().__init__(theme, len(options), dismiss_callback, **kwargs)
+        self._rows = {}
+
+        for value, text in options:
+            row = ChoiceButton(
+                ButtonStyle(theme.surface, theme.text),
+                text=text,
+                font_size=sp(18),
+                bold=False,
+                halign="left",
+                valign="middle",
+            )
+            row.bind(size=self._align_text)
+            row.bind(on_release=lambda _button, v=value: select_callback(v))
+            self.panel.add_widget(row)
+            self._rows[value] = row
+
+        self.apply_theme(theme, selected)
+
+    def apply_theme(self, theme, selected):
+        """Оновлює кольори меню та позначає вибраний варіант."""
+        self.panel.set_color(theme.surface)
+        accent = theme.button_styles["operator"].background
+
+        for value, row in self._rows.items():
+            row.apply_style(ButtonStyle(theme.surface, theme.text))
+            row.set_indicator(value == selected, accent, theme.text_muted)
 
 
 class DisplayLabel(Label):

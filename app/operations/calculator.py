@@ -21,7 +21,7 @@ from operations.unary import (
     Negation,
     Percent,
 )
-# Символи з інтерфейсу -> внутрішні символи операцій
+
 SYMBOL_ALIASES = {"×": "*", "÷": "/", "−": "-", ",": "."}
 
 # Результат має бути менший за 10^16, щоб числа вміщалися на екрані
@@ -53,13 +53,11 @@ class Calculator:
                 Percent(),
             )
         }
-        # пріоритети від найвищого до найнижчого
         self._priorities = sorted(
             {operation.priority for operation in self.operations.values()},
             reverse=True,
         )
 
-    # ---------- публічний інтерфейс ----------
 
     def calculate(self, expression: str) -> Decimal:
         try:
@@ -79,14 +77,13 @@ class Calculator:
         try:
             value = value.quantize(cls.RESULT_PRECISION)
         except InvalidOperation:
-            pass  # велике число, лишаємо як є
+            pass
 
         if value == 0:
             return "0"
 
         return format(value.normalize(), "f")
 
-    # ---------- розбір виразу ----------
 
     def _parse(self, expression: str) -> tuple[list[Decimal], list[str]]:
         numbers: list[Decimal] = []
@@ -113,7 +110,6 @@ class Calculator:
                     expect_operand = False
 
                 if expect_operand:
-                    # оператор там, де очікується число: дозволений лише унарний мінус
                     if symbol == "-" and not negative:
                         negative = True
                     else:
@@ -142,7 +138,6 @@ class Calculator:
 
         return -value if negative else value
 
-    # ---------- обчислення ----------
 
     def _evaluate(self, numbers: list[Decimal], operators: list[str]) -> Decimal:
         for priority in self._priorities:

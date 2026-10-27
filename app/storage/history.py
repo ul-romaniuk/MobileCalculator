@@ -7,7 +7,7 @@ from storage.json_file import JsonFile
 class HistoryEntry:
     expression: str
     result: str
-    recall: str  # що підставляється на дисплей при дотику до запису
+    recall: str
 
     @classmethod
     def from_dict(cls, data) -> "HistoryEntry | None":

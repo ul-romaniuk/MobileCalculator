@@ -10,7 +10,7 @@ from kivy.uix.widget import Widget
 from operations.calculator import Calculator
 from operations.errors import CalculatorError
 from storage.history import History
-from ui.widgets import DisplayLabel, MenuButton, PopupMenu, RoundedButton
+from ui.widgets import ChoiceMenu, DisplayLabel, ExpandButton, MenuButton, PopupMenu, RoundedButton
 
 
 DIGITS = "0123456789"
@@ -43,7 +43,7 @@ KEYPAD = [
         ("+", "operator"),
     ],
     [
-        ("TOGGLE", "secondary"),
+        ("TOGGLE", "function"),
         ("0", "number"),
         (".", "number"),
         ("=", "equals"),
@@ -74,7 +74,7 @@ class CalculatorScreen(Screen):
         history: History,
         theme,
         open_history_callback,
-        toggle_theme_callback,
+        select_theme_callback,
         open_about_callback,
         **kwargs,
     ):
@@ -85,7 +85,7 @@ class CalculatorScreen(Screen):
         self.theme = theme
 
         self.open_history_callback = open_history_callback
-        self.toggle_theme_callback = toggle_theme_callback
+        self.select_theme_callback = select_theme_callback
         self.open_about_callback = open_about_callback
 
         self.expression = ""
@@ -188,10 +188,8 @@ class CalculatorScreen(Screen):
             for label, kind in row:
 
                 if label == "TOGGLE":
-                    self.toggle_button = RoundedButton(
-                        self.theme.button_styles["secondary"],
-                        text="▼",
-                        font_size=sp(20),
+                    self.toggle_button = ExpandButton(
+                        self.theme.button_styles["function"],
                     )
                     self.toggle_button.bind(
                         on_release=lambda *_: self._set_extended(
@@ -200,7 +198,7 @@ class CalculatorScreen(Screen):
                     )
 
                     self._styled_buttons.append(
-                        (self.toggle_button, "secondary")
+                        (self.toggle_button, "function")
                     )
 
                     self.main_grid.add_widget(
@@ -267,9 +265,24 @@ class CalculatorScreen(Screen):
             self.theme,
             items=[
                 ("Історія", self.open_history_callback),
-                ("Тема", self.toggle_theme_callback),
+                ("Тема", self._open_theme_menu),
                 ("Про розробника", self.open_about_callback),
             ],
+            dismiss_callback=self.close_menu,
+        )
+
+        self.add_widget(self._menu)
+
+    def _open_theme_menu(self):
+        """Відкриває меню вибору теми: світла або темна."""
+        if self._menu is not None:
+            return
+
+        self._menu = ChoiceMenu(
+            self.theme,
+            options=[("light", "Світла"), ("dark", "Темна")],
+            selected=self.theme.name,
+            select_callback=self.select_theme_callback,
             dismiss_callback=self.close_menu,
         )
 
@@ -297,6 +310,10 @@ class CalculatorScreen(Screen):
 
         self._update_toggle_button()
 
+        # якщо відкрите меню вибору теми, оновлюємо його вигляд та індикатор
+        if isinstance(self._menu, ChoiceMenu):
+            self._menu.apply_theme(theme, theme.name)
+
         self.history_label.color = theme.text_muted
 
         self._refresh()
@@ -323,17 +340,13 @@ class CalculatorScreen(Screen):
         self._update_toggle_button()
 
     def _update_toggle_button(self):
-        """Оновлює стрілку та стиль кнопки розгортання."""
+        """Оновлює стиль кнопки розгортання: вона підсвічується, поки функції розкриті."""
         if not hasattr(self, "toggle_button"):
             return
 
-        self.toggle_button.text = (
-            "▲" if self.extended else "▼"
-        )
-
         kind = (
             "operator" if self.extended
-            else "secondary"
+            else "function"
         )
 
         self.toggle_button.apply_style(
