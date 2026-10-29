@@ -12,7 +12,6 @@ from operations.errors import (
     CalculatorError,
     INVALID_EXPRESSION,
     CALCULATION_FAILED,
-    TOO_LARGE,
 )
 from operations.unary import (
     Square,
@@ -24,25 +23,32 @@ from operations.unary import (
 
 SYMBOL_ALIASES = {"×": "*", "÷": "/", "−": "-", ",": "."}
 
-# Результат має бути менший за 10^16, щоб числа вміщалися на екрані
-MAX_ADJUSTED_EXPONENT = 15
-
 
 class Calculator:
     """Розбирає вираз і обчислює його з урахуванням пріоритету операцій.
 
-    Використовує Decimal, тому 0.1 + 0.2 дає рівно 0.3.
-    Підтримує унарний мінус ("-5+3", "5*-3") і степінь ("2^3^2").
-    Одномісні операції (x², √, 1/x, ±) викликаються через apply_unary().
+    Використовує Decimal для виконання обчислень.
+    Підтримує унарний мінус і піднесення до степеня.
+    Одномісні операції викликаються через apply_unary().
     """
 
     RESULT_PRECISION = Decimal("1e-10")
+    MAX_DISPLAY_LENGTH = 16
+    SCIENTIFIC_THRESHOLD_HIGH = 16
+    SCIENTIFIC_THRESHOLD_LOW = -7
 
     def __init__(self):
         self.operations: dict[str, BinaryOperation] = {
             operation.symbol: operation
-            for operation in (Addition(), Subtraction(), Multiplication(), Division(), Power())
+            for operation in (
+                Addition(),
+                Subtraction(),
+                Multiplication(),
+                Division(),
+                Power(),
+            )
         }
+
         self.unary_operations: dict[str, UnaryOperation] = {
             operation.symbol: operation
             for operation in (
@@ -53,37 +59,67 @@ class Calculator:
                 Percent(),
             )
         }
+
         self._priorities = sorted(
             {operation.priority for operation in self.operations.values()},
             reverse=True,
         )
 
-
     def calculate(self, expression: str) -> Decimal:
         try:
             numbers, operators = self._parse(expression)
-            return self._check_size(self._evaluate(numbers, operators))
+            return self._evaluate(numbers, operators)
         except ArithmeticError:
             raise CalculatorError(CALCULATION_FAILED) from None
 
     def apply_unary(self, symbol: str, value: Decimal) -> Decimal:
         try:
-            return self._check_size(self.unary_operations[symbol].execute(value))
+            return self.unary_operations[symbol].execute(value)
         except ArithmeticError:
             raise CalculatorError(CALCULATION_FAILED) from None
 
     @classmethod
     def format_result(cls, value: Decimal) -> str:
+        """Форматує результат у звичайному або науковому форматі."""
+        if not value.is_finite():
+            return str(value)
+
+        if value == 0:
+            return "0"
+
+        value = value.normalize()
+        exponent = value.adjusted()
+
+        if (
+            exponent >= cls.SCIENTIFIC_THRESHOLD_HIGH
+            or exponent <= cls.SCIENTIFIC_THRESHOLD_LOW
+        ):
+            return cls._format_scientific(value)
+
         try:
             value = value.quantize(cls.RESULT_PRECISION)
         except InvalidOperation:
             pass
 
-        if value == 0:
-            return "0"
+        result = format(value.normalize(), "f")
 
-        return format(value.normalize(), "f")
+        if "." in result:
+            result = result.rstrip("0").rstrip(".")
 
+        if len(result) > cls.MAX_DISPLAY_LENGTH:
+            return cls._format_scientific(value)
+
+        return result
+
+    @staticmethod
+    def _format_scientific(value: Decimal) -> str:
+        """Перетворює число на компактний науковий запис."""
+        result = format(value, ".8E")
+        mantissa, exponent = result.split("E")
+
+        mantissa = mantissa.rstrip("0").rstrip(".")
+
+        return f"{mantissa}e{exponent}"
 
     def _parse(self, expression: str) -> tuple[list[Decimal], list[str]]:
         numbers: list[Decimal] = []
@@ -138,29 +174,31 @@ class Calculator:
 
         return -value if negative else value
 
-
-    def _evaluate(self, numbers: list[Decimal], operators: list[str]) -> Decimal:
+    def _evaluate(
+        self,
+        numbers: list[Decimal],
+        operators: list[str],
+    ) -> Decimal:
         for priority in self._priorities:
             while indexes := self._operator_indexes(operators, priority):
                 first = self.operations[operators[indexes[0]]]
                 index = indexes[-1] if first.right_associative else indexes[0]
 
                 operation = self.operations[operators.pop(index)]
-                numbers[index:index + 2] = [operation.execute(numbers[index], numbers[index + 1])]
+                numbers[index:index + 2] = [
+                    operation.execute(numbers[index], numbers[index + 1])
+                ]
 
         return numbers[0]
 
-    def _operator_indexes(self, operators: list[str], priority: int) -> list[int]:
-        """Позиції операторів із заданим пріоритетом."""
+    def _operator_indexes(
+        self,
+        operators: list[str],
+        priority: int,
+    ) -> list[int]:
+        """Повертає позиції операторів із заданим пріоритетом."""
         return [
             index
             for index, symbol in enumerate(operators)
             if self.operations[symbol].priority == priority
         ]
-
-    @staticmethod
-    def _check_size(value: Decimal) -> Decimal:
-        if value.is_finite() and value.adjusted() > MAX_ADJUSTED_EXPONENT:
-            raise CalculatorError(TOO_LARGE)
-
-        return value
