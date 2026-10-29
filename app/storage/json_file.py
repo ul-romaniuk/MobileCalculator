@@ -1,3 +1,5 @@
+"""Безпечне читання й атомарний запис JSON-файлів."""
+
 import json
 import os
 
@@ -6,6 +8,7 @@ class JsonFile:
     """Читає та записує один JSON-файл. Помилки файлу не ламають застосунок."""
 
     def __init__(self, path: str):
+        """Створює об'єкт для роботи з файлом за вказаним шляхом."""
         self.path = path
 
     def load(self, default=None):

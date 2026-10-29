@@ -1,4 +1,8 @@
+"""Парсер, виконавець і форматувач арифметичних виразів."""
+
 from decimal import Decimal, InvalidOperation
+
+from config import settings
 
 from operations.base import BinaryOperation, UnaryOperation
 from operations.base_arithmetic import (
@@ -8,10 +12,9 @@ from operations.base_arithmetic import (
     Division,
     Power,
 )
-from operations.errors import (
-    CalculatorError,
-    INVALID_EXPRESSION,
-    CALCULATION_FAILED,
+from operations.exceptions import (
+    InvalidExpressionException,
+    CalculationFailedException,
 )
 from operations.unary import (
     Square,
@@ -25,19 +28,13 @@ SYMBOL_ALIASES = {"×": "*", "÷": "/", "−": "-", ",": "."}
 
 
 class Calculator:
-    """Розбирає вираз і обчислює його з урахуванням пріоритету операцій.
+    """Обчислює вирази з урахуванням пріоритету операцій.
 
-    Використовує Decimal для виконання обчислень.
-    Підтримує унарний мінус і піднесення до степеня.
-    Одномісні операції викликаються через apply_unary().
+    Використовує Decimal, унарний мінус і праву асоціативність степеня.
     """
 
-    RESULT_PRECISION = Decimal("1e-10")
-    MAX_DISPLAY_LENGTH = 16
-    SCIENTIFIC_THRESHOLD_HIGH = 16
-    SCIENTIFIC_THRESHOLD_LOW = -7
-
     def __init__(self):
+        """Готує реєстр операцій калькулятора."""
         self.operations: dict[str, BinaryOperation] = {
             operation.symbol: operation
             for operation in (
@@ -66,21 +63,23 @@ class Calculator:
         )
 
     def calculate(self, expression: str) -> Decimal:
+        """Обчислює вираз або піднімає CalculatorException."""
         try:
             numbers, operators = self._parse(expression)
             return self._evaluate(numbers, operators)
         except ArithmeticError:
-            raise CalculatorError(CALCULATION_FAILED) from None
+            raise CalculationFailedException() from None
 
     def apply_unary(self, symbol: str, value: Decimal) -> Decimal:
+        """Застосовує унарну операцію або піднімає CalculatorException."""
         try:
             return self.unary_operations[symbol].execute(value)
         except ArithmeticError:
-            raise CalculatorError(CALCULATION_FAILED) from None
+            raise CalculationFailedException() from None
 
     @classmethod
     def format_result(cls, value: Decimal) -> str:
-        """Форматує результат у звичайному або науковому форматі."""
+        """Форматує результат звичайним або науковим записом."""
         if not value.is_finite():
             return str(value)
 
@@ -91,13 +90,13 @@ class Calculator:
         exponent = value.adjusted()
 
         if (
-            exponent >= cls.SCIENTIFIC_THRESHOLD_HIGH
-            or exponent <= cls.SCIENTIFIC_THRESHOLD_LOW
+            exponent >= settings.scientific_threshold_high
+            or exponent <= settings.scientific_threshold_low
         ):
             return cls._format_scientific(value)
 
         try:
-            value = value.quantize(cls.RESULT_PRECISION)
+            value = value.quantize(settings.result_precision)
         except InvalidOperation:
             pass
 
@@ -106,7 +105,7 @@ class Calculator:
         if "." in result:
             result = result.rstrip("0").rstrip(".")
 
-        if len(result) > cls.MAX_DISPLAY_LENGTH:
+        if len(result) > settings.max_display_length:
             return cls._format_scientific(value)
 
         return result
@@ -149,19 +148,19 @@ class Calculator:
                     if symbol == "-" and not negative:
                         negative = True
                     else:
-                        raise CalculatorError(INVALID_EXPRESSION)
+                        raise InvalidExpressionException()
                 else:
                     operators.append(symbol)
                     expect_operand = True
 
             else:
-                raise CalculatorError(INVALID_EXPRESSION)
+                raise InvalidExpressionException()
 
         if buffer:
             numbers.append(self._to_number(buffer, negative))
 
         if not numbers or len(numbers) != len(operators) + 1:
-            raise CalculatorError(INVALID_EXPRESSION)
+            raise InvalidExpressionException()
 
         return numbers, operators
 
@@ -170,7 +169,7 @@ class Calculator:
         try:
             value = Decimal(text)
         except InvalidOperation:
-            raise CalculatorError(INVALID_EXPRESSION) from None
+            raise InvalidExpressionException() from None
 
         return -value if negative else value
 

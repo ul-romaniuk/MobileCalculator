@@ -1,3 +1,5 @@
+"""Повторно використовувані Kivy-віджети калькулятора."""
+
 from kivy.graphics import Color, Rectangle, RoundedRectangle
 from kivy.metrics import dp, sp
 from kivy.uix.boxlayout import BoxLayout
@@ -13,6 +15,7 @@ class RoundedButton(Button):
     """Кнопка із закругленими кутами; кольори беруться зі стилю теми."""
 
     def __init__(self, style: ButtonStyle, **kwargs):
+        """Створює кнопку із заданими кольорами."""
         kwargs.setdefault("bold", True)
         super().__init__(
             background_normal="",
@@ -35,6 +38,7 @@ class RoundedButton(Button):
         self.bind(pos=self._update_shape, size=self._update_shape, state=self._update_color)
 
     def apply_style(self, style: ButtonStyle):
+        """Застосовує нову палітру кнопки."""
         self._normal_color = style.background
         self._pressed_color = pressed_variant(style.background)
         self.color = style.foreground
@@ -55,6 +59,7 @@ class MenuButton(RoundedButton):
     GAP = dp(7)
 
     def __init__(self, style: ButtonStyle, **kwargs):
+        """Створює кнопку меню з трьома крапками."""
         super().__init__(style, **kwargs)
 
         with self.canvas.after:
@@ -65,6 +70,7 @@ class MenuButton(RoundedButton):
         self._update_dots()
 
     def apply_style(self, style: ButtonStyle):
+        """Оновлює кольори кнопки та значка."""
         super().apply_style(style)
         self._dots_color.rgba = style.foreground
 
@@ -89,6 +95,7 @@ class ExpandButton(RoundedButton):
     """
 
     def __init__(self, style: ButtonStyle, **kwargs):
+        """Створює кнопку розгортання додаткової клавіатури."""
         super().__init__(style, **kwargs)
 
         with self.canvas.after:
@@ -99,6 +106,7 @@ class ExpandButton(RoundedButton):
         self._update_icon()
 
     def apply_style(self, style: ButtonStyle):
+        """Оновлює кольори кнопки та значка."""
         super().apply_style(style)
         self._icon_color.rgba = style.foreground
 
@@ -120,6 +128,7 @@ class ChoiceButton(RoundedButton):
     EDGE = dp(26)  # відстань від правого краю до центра кружечка
 
     def __init__(self, style: ButtonStyle, **kwargs):
+        """Створює рядок вибору з круговим індикатором."""
         super().__init__(style, **kwargs)
         self._selected = False
 
@@ -151,6 +160,7 @@ class SurfacePanel(BoxLayout):
     """Панель із закругленими кутами (фон меню та екрана з даними)."""
 
     def __init__(self, color, radius=18, **kwargs):
+        """Створює панель із заданим кольором і радіусом."""
         super().__init__(**kwargs)
 
         with self.canvas.before:
@@ -160,6 +170,7 @@ class SurfacePanel(BoxLayout):
         self.bind(pos=self._update_shape, size=self._update_shape)
 
     def set_color(self, color):
+        """Змінює колір фону панелі."""
         self._fill.rgba = color
 
     def _update_shape(self, *_):
@@ -179,6 +190,7 @@ class MenuOverlay(FloatLayout):
     MARGIN = dp(16)
 
     def __init__(self, theme, row_count, dismiss_callback, **kwargs):
+        """Створює затемнення екрана та панель меню."""
         super().__init__(**kwargs)
 
         scrim = Button(
@@ -215,6 +227,7 @@ class PopupMenu(MenuOverlay):
     """
 
     def __init__(self, theme, items, dismiss_callback, **kwargs):
+        """Створює меню з діями та закриттям після вибору."""
         super().__init__(theme, len(items), dismiss_callback, **kwargs)
         style = ButtonStyle(theme.surface, theme.text)
 
@@ -245,6 +258,7 @@ class ChoiceMenu(MenuOverlay):
     """
 
     def __init__(self, theme, options, selected, select_callback, dismiss_callback, **kwargs):
+        """Створює меню вибору з відміткою поточного значення."""
         super().__init__(theme, len(options), dismiss_callback, **kwargs)
         self._rows = {}
 
@@ -278,6 +292,7 @@ class DisplayLabel(Label):
     """Дисплей калькулятора з підтримкою довгих повідомлень."""
 
     def __init__(self, **kwargs):
+        """Створює вирівняний праворуч напис дисплея."""
         kwargs.setdefault("halign", "right")
         kwargs.setdefault("valign", "middle")
         kwargs.setdefault("padding", (dp(8), dp(6)))

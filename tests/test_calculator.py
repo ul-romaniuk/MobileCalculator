@@ -1,13 +1,16 @@
+"""Перевірки арифметики, помилок і формату результату."""
+
 from decimal import Decimal
 
 import pytest
 
 from app.operations.calculator import Calculator
-from operations.errors import (
-    CalculatorError,
-    INVALID_EXPRESSION,
-    DIVISION_BY_ZERO,
-    NEGATIVE_SQRT,
+from app.config import settings
+from operations.exceptions import (
+    CalculatorException,
+    InvalidExpressionException,
+    DivisionByZeroException,
+    NegativeSqrtException,
 )
 
 
@@ -15,8 +18,6 @@ from operations.errors import (
 def calculator():
     return Calculator()
 
-
-# Перевірка арифметичних виразів
 
 @pytest.mark.parametrize(
     ("expression", "expected"),
@@ -56,21 +57,19 @@ def test_power_100(calculator):
 
     assert result > 0
     assert "e+" in formatted.lower()
-    assert len(formatted) <= Calculator.MAX_DISPLAY_LENGTH
+    assert len(formatted) <= settings.max_display_length
 
 
 def test_power_1000(calculator):
     result = calculator.calculate("2^1000")
     assert result > 0
-    assert len(Calculator.format_result(result)) <= Calculator.MAX_DISPLAY_LENGTH
+    assert len(Calculator.format_result(result)) <= settings.max_display_length
 
 
 def test_power_extremely_large(calculator):
-    with pytest.raises(CalculatorError):
+    with pytest.raises(CalculatorException):
         calculator.calculate("2^100000000000000")
 
-
-# Перевірка некоректних виразів
 
 @pytest.mark.parametrize(
     "expression",
@@ -84,20 +83,18 @@ def test_power_extremely_large(calculator):
     ],
 )
 def test_invalid_expression(calculator, expression):
-    with pytest.raises(CalculatorError) as error:
+    with pytest.raises(CalculatorException) as error:
         calculator.calculate(expression)
 
-    assert str(error.value) == INVALID_EXPRESSION
+    assert str(error.value) == str(InvalidExpressionException())
 
 
 def test_division_by_zero(calculator):
-    with pytest.raises(CalculatorError) as error:
+    with pytest.raises(CalculatorException) as error:
         calculator.calculate("5/0")
 
-    assert str(error.value) == DIVISION_BY_ZERO
+    assert str(error.value) == str(DivisionByZeroException())
 
-
-# Перевірка одномісних операцій
 
 @pytest.mark.parametrize(
     ("symbol", "value", "expected"),
@@ -115,20 +112,18 @@ def test_unary_operations(calculator, symbol, value, expected):
 
 
 def test_square_root_of_negative_number(calculator):
-    with pytest.raises(CalculatorError) as error:
+    with pytest.raises(CalculatorException) as error:
         calculator.apply_unary("√", Decimal("-9"))
 
-    assert str(error.value) == NEGATIVE_SQRT
+    assert str(error.value) == str(NegativeSqrtException())
 
 
 def test_reciprocal_of_zero(calculator):
-    with pytest.raises(CalculatorError) as error:
+    with pytest.raises(CalculatorException) as error:
         calculator.apply_unary("1/x", Decimal("0"))
 
-    assert str(error.value) == DIVISION_BY_ZERO
+    assert str(error.value) == str(DivisionByZeroException())
 
-
-# Перевірка форматування результатів
 
 @pytest.mark.parametrize(
     ("value", "expected"),
@@ -146,5 +141,4 @@ def test_reciprocal_of_zero(calculator):
 def test_format_result(value, expected):
     result = Calculator.format_result(Decimal(value))
     assert result == expected
-
 

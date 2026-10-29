@@ -1,10 +1,14 @@
+"""Модель та збереження історії обчислень."""
+
 from dataclasses import dataclass, asdict
 
 from storage.json_file import JsonFile
+from config import settings
 
 
 @dataclass(frozen=True)
 class HistoryEntry:
+    """Незмінний запис виразу, результату та значення для повторного вводу."""
     expression: str
     result: str
     recall: str
@@ -25,24 +29,26 @@ class HistoryEntry:
 
 
 class History:
-    """Останні обчислення. Нові записи додаються на початок, зберігається не більше 10."""
-
-    MAX_ENTRIES = 10
+    """Останні обчислення з обмеженою кількістю записів."""
 
     def __init__(self, json_file: JsonFile):
+        """Завантажує історію зі сховища."""
         self._file = json_file
         self._entries = self._load()
 
     @property
     def entries(self) -> list[HistoryEntry]:
+        """Повертає копію списку записів від найновішого."""
         return list(self._entries)
 
     def add(self, expression: str, result: str, recall: str | None = None) -> None:
+        """Додає запис і зберігає записи в межах ліміту."""
         self._entries.insert(0, HistoryEntry(expression, result, recall or expression))
-        del self._entries[self.MAX_ENTRIES:]
+        del self._entries[settings.history_limit:]
         self._save()
 
     def clear(self) -> None:
+        """Видаляє всі записи та зберігає порожню історію."""
         self._entries.clear()
         self._save()
 
@@ -53,7 +59,7 @@ class History:
             return []
 
         entries = (HistoryEntry.from_dict(item) for item in data)
-        return [entry for entry in entries if entry is not None][: self.MAX_ENTRIES]
+        return [entry for entry in entries if entry is not None][: settings.history_limit]
 
     def _save(self) -> None:
         self._file.save([asdict(entry) for entry in self._entries])

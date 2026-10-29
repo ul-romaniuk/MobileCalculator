@@ -1,3 +1,5 @@
+"""Кольорові палітри та стилі інтерфейсу."""
+
 from dataclasses import dataclass
 
 from kivy.utils import get_color_from_hex as hex_color
@@ -5,12 +7,14 @@ from kivy.utils import get_color_from_hex as hex_color
 
 @dataclass(frozen=True)
 class ButtonStyle:
+    """Кольори фону й тексту кнопки."""
     background: tuple
     foreground: tuple
 
 
 @dataclass(frozen=True)
 class Theme:
+    """Палітра кольорів застосунку."""
     name: str
     background: tuple
     surface: tuple  # фон панелей і меню
@@ -56,7 +60,7 @@ THEMES = {"dark": DARK, "light": LIGHT}
 
 
 def pressed_variant(color):
-    """Колір натиснутої кнопки: світлі кнопки темнішають, темні світлішають."""
+    """Повертає варіант кольору для натиснутого стану кнопки."""
     r, g, b, a = color
     brightness = 0.299 * r + 0.587 * g + 0.114 * b
 

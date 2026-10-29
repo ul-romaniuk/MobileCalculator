@@ -1,27 +1,20 @@
+"""Kivy-подання з відомостями про застосунок."""
+
 from kivy.metrics import dp, sp
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.label import Label
 from kivy.uix.screenmanager import Screen
 from kivy.uix.scrollview import ScrollView
 
+from config import settings
 from ui.widgets import RoundedButton, SurfacePanel
-
-# Дані про розробника: змініть їх на свої
-ABOUT_INFO = [
-    ("Застосунок", "Калькулятор"),
-    ("Версія", "1.0.0"),
-    ("Розробник", "Романюк Уляна"),
-    ("Група", "IT-41з"),
-    ("Навчальний заклад", "Львівський національний університет ветеринарної медицини та біотехнологій імені Степана Ґжицького"),
-    ("Призначення", "Курсовий проєкт з дисципліни «Програмування мобільних платформ»"),
-    ("Рік розробки", "2026"),
-]
 
 
 class WrappedLabel(Label):
     """Напис, який переносить текст на новий рядок і підлаштовує свою висоту."""
 
     def __init__(self, **kwargs):
+        """Створює напис, висота якого залежить від перенесеного тексту."""
         kwargs.setdefault("halign", "left")
         kwargs.setdefault("valign", "top")
         super().__init__(size_hint_y=None, **kwargs)
@@ -38,6 +31,7 @@ class AboutScreen(Screen):
     """Екран з відомостями про застосунок і розробника."""
 
     def __init__(self, theme, back_callback, **kwargs):
+        """Створює екран відомостей із темою та дією повернення."""
         super().__init__(**kwargs)
         self.theme = theme
         self.back_callback = back_callback
@@ -78,7 +72,7 @@ class AboutScreen(Screen):
         self.captions = []
         self.values = []
 
-        for caption, value in ABOUT_INFO:
+        for caption, value in settings.about_info:
             row = BoxLayout(orientation="vertical", size_hint_y=None, spacing=dp(2))
             row.bind(minimum_height=row.setter("height"))
 
@@ -101,6 +95,7 @@ class AboutScreen(Screen):
         self.apply_theme(theme)
 
     def apply_theme(self, theme):
+        """Застосовує тему до всіх елементів екрана."""
         self.theme = theme
         self.back_button.apply_style(theme.button_styles["secondary"])
         self.title_label.color = theme.text

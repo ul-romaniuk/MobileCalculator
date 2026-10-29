@@ -1,13 +1,13 @@
+"""Абстрактні типи арифметичних операцій."""
+
 from abc import ABC, abstractmethod
 from decimal import Decimal
 
 
 class BinaryOperation(ABC):
-    """Базова операція над двома числами (a + b, a ^ b ...).
+    """Базова операція над двома числами.
 
-    symbol            - символ, яким операція позначається у виразі.
-    priority          - чим більше число, тим раніше виконується операція.
-    right_associative - True, якщо a ^ b ^ c = a ^ (b ^ c).
+    Атрибути визначають символ, пріоритет і напрямок асоціативності.
     """
 
     symbol: str
@@ -16,17 +16,16 @@ class BinaryOperation(ABC):
 
     @abstractmethod
     def execute(self, a: Decimal, b: Decimal) -> Decimal:
+        """Виконує бінарну операцію над двома числами."""
         ...
 
 
 class UnaryOperation(ABC):
-    """Базова операція над одним числом (x², √x, 1/x ...).
-
-    symbol - текст кнопки, яка запускає цю операцію.
-    """
+    """Базова операція над одним числом."""
 
     symbol: str
 
     @abstractmethod
     def execute(self, a: Decimal) -> Decimal:
+        """Виконує унарну операцію над числом."""
         ...

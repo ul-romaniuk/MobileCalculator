@@ -1,3 +1,5 @@
+"""Kivy-подання збережених обчислень."""
+
 from kivy.metrics import dp, sp
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.label import Label
@@ -12,12 +14,14 @@ from ui.widgets import RoundedButton
 class HistoryScreen(Screen):
     """Екран зі списком останніх обчислень. Дотик до запису повертає його вираз."""
 
-    def __init__(self, history: History, theme, back_callback, select_callback, **kwargs):
+    def __init__(self, history: History, theme, back_callback, select_callback, clear_callback=None, **kwargs):
+        """Створює екран історії та прив'язує дії навігації й очищення."""
         super().__init__(**kwargs)
         self.history = history
         self.theme = theme
         self.back_callback = back_callback
         self.select_callback = select_callback
+        self.clear_callback = clear_callback
 
         layout = BoxLayout(orientation="vertical", padding=dp(16), spacing=dp(12))
 
@@ -59,6 +63,7 @@ class HistoryScreen(Screen):
         self.apply_theme(theme)
 
     def apply_theme(self, theme):
+        """Застосовує тему та перемальовує список."""
         self.theme = theme
         self.back_button.apply_style(theme.button_styles["secondary"])
         self.clear_button.apply_style(theme.button_styles["secondary"])
@@ -66,10 +71,14 @@ class HistoryScreen(Screen):
         self._rebuild()
 
     def on_pre_enter(self, *args):
+        """Оновлює список перед показом екрана."""
         self._rebuild()
 
     def _clear_history(self):
-        self.history.clear()
+        if self.clear_callback is None:
+            self.history.clear()
+        else:
+            self.clear_callback()
         self._rebuild()
 
     def _rebuild(self):

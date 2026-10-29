@@ -1,5 +1,4 @@
-
-from decimal import Decimal, InvalidOperation
+"""Kivy-подання калькулятора: екран, дисплей та клавіатура."""
 
 from kivy.metrics import dp, sp
 from kivy.uix.boxlayout import BoxLayout
@@ -7,15 +6,12 @@ from kivy.uix.gridlayout import GridLayout
 from kivy.uix.screenmanager import Screen
 from kivy.uix.widget import Widget
 
+from controllers.calculator_controller import CalculatorController
+from models.calculator_model import CalculatorModel
 from operations.calculator import Calculator
-from operations.errors import CalculatorError
 from storage.history import History
 from ui.widgets import ChoiceMenu, DisplayLabel, ExpandButton, MenuButton, PopupMenu, RoundedButton
 
-
-DIGITS = "0123456789"
-OPERATORS = "+−×÷^"
-KEY_ALIASES = {"x^y": "^"}
 
 KEYPAD = [
     [
@@ -58,13 +54,6 @@ EXTENDED_ROW = [
     ("±", "function"),
 ]
 
-UNARY_HISTORY_TEMPLATES = {
-    "x²": "({})²",
-    "√": "√({})",
-    "1/x": "1/({})",
-}
-
-
 class CalculatorScreen(Screen):
     """Екран калькулятора з меню, дисплеєм і розширеною клавіатурою."""
 
@@ -76,22 +65,21 @@ class CalculatorScreen(Screen):
         open_history_callback,
         select_theme_callback,
         open_about_callback,
+        controller: CalculatorController | None = None,
         **kwargs,
     ):
+        """Створює екран із початковими залежностями та діями меню."""
         super().__init__(**kwargs)
 
-        self.calculator = calculator
-        self.history = history
+        self.controller = controller or CalculatorController(
+            CalculatorModel(calculator, history)
+        )
         self.theme = theme
 
         self.open_history_callback = open_history_callback
         self.select_theme_callback = select_theme_callback
         self.open_about_callback = open_about_callback
 
-        self.expression = ""
-        self.history_line = ""
-        self.error = None
-        self.just_evaluated = False
         self.extended = False
         self._menu = None
         self._styled_buttons = []
@@ -107,9 +95,8 @@ class CalculatorScreen(Screen):
         self._build_keypad(layout)
 
         self.add_widget(layout)
+        self.controller.set_change_callback(self._refresh)
         self.apply_theme(theme)
-
-    # ---------- Верхня панель ----------
 
     def _build_top_bar(self, layout):
         bar = BoxLayout(
@@ -117,8 +104,6 @@ class CalculatorScreen(Screen):
             height=dp(44),
         )
 
-        # Порожній простір ліворуч.
-        # Кнопка розгортання розташована в клавіатурі.
         bar.add_widget(Widget())
 
         self.menu_button = MenuButton(
@@ -136,8 +121,6 @@ class CalculatorScreen(Screen):
 
         bar.add_widget(self.menu_button)
         layout.add_widget(bar)
-
-    # ---------- Дисплей ----------
 
     def _build_display(self, layout):
         area = BoxLayout(
@@ -160,8 +143,6 @@ class CalculatorScreen(Screen):
 
         layout.add_widget(area)
 
-    # ---------- Клавіатура ----------
-
     def _build_keypad(self, layout):
         self.keypad = BoxLayout(
             orientation="vertical",
@@ -169,7 +150,6 @@ class CalculatorScreen(Screen):
             size_hint_y=0.75,
         )
 
-        # Додатковий ряд прихований до натискання стрілки.
         self.extended_row = self._build_row(
             EXTENDED_ROW,
             font_size=22,
@@ -177,7 +157,6 @@ class CalculatorScreen(Screen):
         self.extended_row.size_hint_y = None
         self.extended_row.height = dp(54)
 
-        # Основна клавіатура: 5 рядків і 4 стовпці.
         self.main_grid = GridLayout(
             cols=4,
             rows=5,
@@ -225,7 +204,6 @@ class CalculatorScreen(Screen):
 
                 self.main_grid.add_widget(button)
 
-        # Основна клавіатура залишається на місці.
         self.keypad.add_widget(self.main_grid)
         layout.add_widget(self.keypad)
 
@@ -254,8 +232,6 @@ class CalculatorScreen(Screen):
             row_layout.add_widget(button)
 
         return row_layout
-
-    # ---------- Меню ----------
 
     def _open_menu(self):
         if self._menu is not None:
@@ -298,9 +274,8 @@ class CalculatorScreen(Screen):
 
         return True
 
-    # ---------- Тема та додаткові функції ----------
-
     def apply_theme(self, theme):
+        """Оновлює кольори віджетів і дисплея."""
         self.theme = theme
 
         for button, kind in self._styled_buttons:
@@ -310,7 +285,6 @@ class CalculatorScreen(Screen):
 
         self._update_toggle_button()
 
-        # якщо відкрите меню вибору теми, оновлюємо його вигляд та індикатор
         if isinstance(self._menu, ChoiceMenu):
             self._menu.apply_theme(theme, theme.name)
 
@@ -325,8 +299,6 @@ class CalculatorScreen(Screen):
         attached = self.extended_row.parent is not None
 
         if enabled and not attached:
-            # У вертикальному BoxLayout останній доданий
-            # елемент розташовується над попередніми.
             self.keypad.add_widget(
                 self.extended_row,
                 index=len(self.keypad.children),
@@ -353,245 +325,25 @@ class CalculatorScreen(Screen):
             self.theme.button_styles[kind]
         )
 
-    # ---------- Обробка натискань ----------
-
     def handle_key(self, key):
-        key = KEY_ALIASES.get(key, key)
-
-        if key in DIGITS:
-            self._input_digit(key)
-
-        elif key == ".":
-            self._input_dot()
-
-        elif key == "%":
-            self._apply_percent()
-
-        elif key in OPERATORS:
-            self._input_operator(key)
-
-        elif key in self.calculator.unary_operations:
-            self._apply_unary(key)
-
-        elif key == "=":
-            self._evaluate()
-
-        elif key in ("DEL", "⌫"):
-            self._delete_last()
-
-        elif key in ("AC", "C"):
-            self._clear()
-
-        self._refresh()
+        """Передає натискання клавіші контролеру."""
+        self.controller.handle_key(key)
 
     def load_expression(self, expression):
-        """Завантажує вираз з історії."""
-        self._clear()
-        self.expression = expression
-        self._refresh()
-
-    def _input_digit(self, digit):
-        if self.just_evaluated or self.error:
-            self._clear()
-
-        current = self._current_number()
-
-        if current == "0":
-            self.expression = self.expression[:-1] + digit
-        else:
-            self.expression += digit
-
-    def _input_dot(self):
-        if self.just_evaluated or self.error:
-            self._clear()
-
-        current = self._current_number()
-
-        if "." in current:
-            return
-
-        self.expression += "." if current else "0."
-
-    def _input_operator(self, operator):
-        if self.error:
-            return
-
-        self.just_evaluated = False
-        self.history_line = ""
-
-        if not self.expression:
-            if operator == "−":
-                self.expression = operator
-            return
-
-        last = self.expression[-1]
-
-        if last in OPERATORS:
-            if operator == "−" and last in "×÷^":
-                self.expression += operator
-                return
-
-            base = self.expression.rstrip(OPERATORS)
-
-            if base:
-                self.expression = base + operator
-        else:
-            self.expression += operator
-
-    def _apply_unary(self, symbol):
-        """Застосовує унарну операцію до останнього числа."""
-        if self.error or not self._current_number():
-            return
-
-        start = self._operand_start()
-        operand = self.expression[start:]
-
-        try:
-            value = Decimal(
-                operand.replace("−", "-")
-            )
-        except InvalidOperation:
-            return
-
-        try:
-            result = self.calculator.apply_unary(
-                symbol,
-                value,
-            )
-        except CalculatorError as error:
-            self.error = str(error)
-            return
-
-        text = self._format(result)
-
-        template = UNARY_HISTORY_TEMPLATES.get(symbol)
-
-        if template:
-            self.history.add(
-                template.format(operand),
-                text,
-                recall=text,
-            )
-
-        self.expression = self.expression[:start] + text
-        self.history_line = ""
-        self.just_evaluated = False
-
-    def _apply_percent(self):
-        """Перетворює останнє число на відсоткове значення."""
-        if self.error or not self._current_number():
-            return
-
-        start = self._operand_start()
-        operand = self.expression[start:]
-
-        try:
-            value = Decimal(
-                operand.replace("−", "-")
-            )
-            result = value / Decimal("100")
-        except (InvalidOperation, ZeroDivisionError):
-            return
-
-        self.expression = (
-            self.expression[:start] + self._format(result)
-        )
-        self.history_line = ""
-        self.just_evaluated = False
-
-    def _delete_last(self):
-        if self.error:
-            self._clear()
-            return
-
-        self.just_evaluated = False
-        self.history_line = ""
-        self.expression = self.expression[:-1]
-
-    def _clear(self):
-        self.expression = ""
-        self.history_line = ""
-        self.error = None
-        self.just_evaluated = False
-
-    def _evaluate(self):
-        if (
-            not self.expression
-            or self.error
-            or self.just_evaluated
-        ):
-            return
-
-        try:
-            result = self.calculator.calculate(
-                self.expression
-            )
-        except CalculatorError as error:
-            self.error = str(error)
-            return
-
-        text = self._format(result)
-
-        if text != self.expression:
-            self.history.add(
-                self.expression,
-                text,
-            )
-
-        self.history_line = f"{self.expression} ="
-        self.expression = text
-        self.just_evaluated = True
-
-    # ---------- Допоміжні методи ----------
-
-    def _format(self, value):
-        return self.calculator.format_result(
-            value
-        ).replace("-", "−")
-
-    def _current_number(self):
-        """Повертає останнє число у виразі."""
-        index = len(self.expression)
-
-        while index > 0 and (
-            self.expression[index - 1] in DIGITS
-            or self.expression[index - 1] == "."
-        ):
-            index -= 1
-
-        return self.expression[index:]
-
-    def _operand_start(self):
-        """Визначає початок останнього числа з урахуванням мінуса."""
-        start = (
-            len(self.expression)
-            - len(self._current_number())
-        )
-
-        if start > 0 and self._is_unary_minus(start - 1):
-            start -= 1
-
-        return start
-
-    def _is_unary_minus(self, index):
-        return (
-            self.expression[index] == "−"
-            and (
-                index == 0
-                or self.expression[index - 1] in "×÷^"
-            )
-        )
+        """Просить контролер завантажити вираз з історії."""
+        self.controller.load_expression(expression)
 
     def _refresh(self):
         if not hasattr(self, "display_label"):
             return
 
-        if self.error:
-            text = self.error
+        expression, history_line, error = self.controller.display_state()
+        if error:
+            text = error
             color = self.theme.error
             size = sp(32)
         else:
-            text = self.expression or "0"
+            text = expression or "0"
             color = self.theme.text
             size = self._font_size_for(text)
 
@@ -599,7 +351,7 @@ class CalculatorScreen(Screen):
         self.display_label.color = color
         self.display_label.font_size = size
 
-        self.history_label.text = self.history_line
+        self.history_label.text = history_line
 
     @staticmethod
     def _font_size_for(text):
