@@ -6,11 +6,7 @@ from kivy.uix.gridlayout import GridLayout
 from kivy.uix.screenmanager import Screen
 from kivy.uix.widget import Widget
 
-from controllers.calculator_controller import CalculatorController
-from models.calculator_model import CalculatorModel
-from operations.calculator import Calculator
-from storage.history import History
-from ui.widgets import ChoiceMenu, DisplayLabel, ExpandButton, MenuButton, PopupMenu, RoundedButton
+from view.widgets import ChoiceMenu, DisplayLabel, ExpandButton, MenuButton, PopupMenu, RoundedButton
 
 
 KEYPAD = [
@@ -59,26 +55,19 @@ class CalculatorScreen(Screen):
 
     def __init__(
         self,
-        calculator: Calculator,
-        history: History,
         theme,
-        open_history_callback,
-        select_theme_callback,
-        open_about_callback,
-        controller: CalculatorController | None = None,
         **kwargs,
     ):
         """Створює екран із початковими залежностями та діями меню."""
         super().__init__(**kwargs)
 
-        self.controller = controller or CalculatorController(
-            CalculatorModel(calculator, history)
-        )
         self.theme = theme
-
-        self.open_history_callback = open_history_callback
-        self.select_theme_callback = select_theme_callback
-        self.open_about_callback = open_about_callback
+        self._on_key = None
+        self._on_open_history = None
+        self._on_select_theme = None
+        self._on_open_about = None
+        self._on_load_expression = None
+        self._display_state = ("", "", None)
 
         self.extended = False
         self._menu = None
@@ -95,8 +84,22 @@ class CalculatorScreen(Screen):
         self._build_keypad(layout)
 
         self.add_widget(layout)
-        self.controller.set_change_callback(self._refresh)
         self.apply_theme(theme)
+
+    def set_actions(
+        self,
+        on_key,
+        on_load_expression,
+        on_open_history,
+        on_select_theme,
+        on_open_about,
+    ):
+        """Підключає дії екрана до контролера застосунку."""
+        self._on_key = on_key
+        self._on_load_expression = on_load_expression
+        self._on_open_history = on_open_history
+        self._on_select_theme = on_select_theme
+        self._on_open_about = on_open_about
 
     def _build_top_bar(self, layout):
         bar = BoxLayout(
@@ -240,9 +243,9 @@ class CalculatorScreen(Screen):
         self._menu = PopupMenu(
             self.theme,
             items=[
-                ("Історія", self.open_history_callback),
+                ("Історія", self._on_open_history),
                 ("Тема", self._open_theme_menu),
-                ("Про розробника", self.open_about_callback),
+                ("Про розробника", self._on_open_about),
             ],
             dismiss_callback=self.close_menu,
         )
@@ -258,7 +261,7 @@ class CalculatorScreen(Screen):
             self.theme,
             options=[("light", "Світла"), ("dark", "Темна")],
             selected=self.theme.name,
-            select_callback=self.select_theme_callback,
+            select_callback=self._on_select_theme,
             dismiss_callback=self.close_menu,
         )
 
@@ -290,7 +293,7 @@ class CalculatorScreen(Screen):
 
         self.history_label.color = theme.text_muted
 
-        self._refresh()
+        self._render_display()
 
     def _set_extended(self, enabled):
         """Показує або приховує додаткові функції."""
@@ -327,17 +330,21 @@ class CalculatorScreen(Screen):
 
     def handle_key(self, key):
         """Передає натискання клавіші контролеру."""
-        self.controller.handle_key(key)
+        if self._on_key is not None:
+            self._on_key(key)
 
     def load_expression(self, expression):
         """Просить контролер завантажити вираз з історії."""
-        self.controller.load_expression(expression)
+        if self._on_load_expression is not None:
+            self._on_load_expression(expression)
 
-    def _refresh(self):
-        if not hasattr(self, "display_label"):
-            return
+    def set_display_state(self, expression, history_line, error):
+        """Оновлює текст дисплея відповідно до стану моделі."""
+        self._display_state = (expression, history_line, error)
+        self._render_display()
 
-        expression, history_line, error = self.controller.display_state()
+    def _render_display(self):
+        expression, history_line, error = self._display_state
         if error:
             text = error
             color = self.theme.error

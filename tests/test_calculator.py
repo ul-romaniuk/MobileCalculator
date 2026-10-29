@@ -4,9 +4,9 @@ from decimal import Decimal
 
 import pytest
 
-from app.operations.calculator import Calculator
-from app.config import settings
-from operations.exceptions import (
+from model.operations.calculator import Calculator
+from config import settings
+from model.operations.exceptions import (
     CalculatorException,
     InvalidExpressionException,
     DivisionByZeroException,
@@ -142,3 +142,53 @@ def test_format_result(value, expected):
     result = Calculator.format_result(Decimal(value))
     assert result == expected
 
+
+
+def test_operation_precedence_and_left_associativity(calculator):
+    """Перевіряє пріоритет множення та послідовне віднімання."""
+    assert calculator.calculate("8-3*2") == Decimal("2")
+    assert calculator.calculate("20/5/2") == Decimal("2")
+
+
+def test_unary_minus_after_multiplication(calculator):
+    """Обчислює від'ємний операнд після множення."""
+    assert calculator.calculate("3×−2") == Decimal("-6")
+
+
+def test_whitespace_is_ignored(calculator):
+    """Ігнорує пробіли навколо операцій та чисел."""
+    assert calculator.calculate(" 2 + 3 ") == Decimal("5")
+
+
+def test_zero_to_negative_power_is_division_by_zero(calculator):
+    """Піднімає спеціальний виняток для нульової основи з від'ємним степенем."""
+    with pytest.raises(DivisionByZeroException, match="Ділення на нуль"):
+        calculator.calculate("0^-1")
+
+
+def test_arithmetic_failure_has_default_message(calculator):
+    """Перетворює переповнення обчислення на помилку калькулятора."""
+    from model.operations.exceptions import CalculationFailedException
+
+    with pytest.raises(CalculationFailedException, match="Помилка обчислення"):
+        calculator.calculate("2^100000000000000")
+
+
+def test_unknown_unary_operation_keeps_key_error(calculator):
+    """Невідомий символ унарної операції лишається помилкою ключа."""
+    with pytest.raises(KeyError):
+        calculator.apply_unary("unknown", Decimal("1"))
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        ("NaN", "NaN"),
+        ("Infinity", "Infinity"),
+        ("-Infinity", "-Infinity"),
+        ("0.0000001", "1e-7"),
+    ],
+)
+def test_format_non_finite_values_and_low_scientific_boundary(value, expected):
+    """Зберігає формат нескінченності та науковий запис на нижній межі."""
+    assert Calculator.format_result(Decimal(value)) == expected

@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass, asdict
 
-from storage.json_file import JsonFile
+from model.storage.json_file import JsonFile
 from config import settings
 
 

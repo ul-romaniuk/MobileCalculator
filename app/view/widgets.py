@@ -7,8 +7,8 @@ from kivy.uix.button import Button
 from kivy.uix.floatlayout import FloatLayout
 from kivy.uix.label import Label
 
-from ui import icons
-from ui.theme import ButtonStyle, pressed_variant
+from view import icons
+from view.theme import ButtonStyle, pressed_variant
 
 
 class RoundedButton(Button):

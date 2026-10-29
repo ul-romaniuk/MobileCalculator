@@ -4,19 +4,19 @@ from decimal import Decimal, InvalidOperation
 
 from config import settings
 
-from operations.base import BinaryOperation, UnaryOperation
-from operations.base_arithmetic import (
+from model.operations.base import BinaryOperation, UnaryOperation
+from model.operations.base_arithmetic import (
     Addition,
     Subtraction,
     Multiplication,
     Division,
     Power,
 )
-from operations.exceptions import (
+from model.operations.exceptions import (
     InvalidExpressionException,
     CalculationFailedException,
 )
-from operations.unary import (
+from model.operations.unary import (
     Square,
     SquareRoot,
     Reciprocal,

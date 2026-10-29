@@ -6,8 +6,7 @@ from kivy.uix.label import Label
 from kivy.uix.screenmanager import Screen
 from kivy.uix.scrollview import ScrollView
 
-from config import settings
-from ui.widgets import RoundedButton, SurfacePanel
+from view.widgets import RoundedButton, SurfacePanel
 
 
 class WrappedLabel(Label):
@@ -30,11 +29,11 @@ class WrappedLabel(Label):
 class AboutScreen(Screen):
     """Екран з відомостями про застосунок і розробника."""
 
-    def __init__(self, theme, back_callback, **kwargs):
-        """Створює екран відомостей із темою та дією повернення."""
+    def __init__(self, theme, about_info, **kwargs):
+        """Створює екран відомостей із переданими підписами й значеннями."""
         super().__init__(**kwargs)
         self.theme = theme
-        self.back_callback = back_callback
+        self._on_back = None
 
         layout = BoxLayout(orientation="vertical", padding=dp(16), spacing=dp(12))
 
@@ -46,7 +45,7 @@ class AboutScreen(Screen):
             size_hint_x=None,
             width=dp(110),
         )
-        self.back_button.bind(on_release=lambda _button: self.back_callback())
+        self.back_button.bind(on_release=lambda _button: self._call(self._on_back))
 
         self.title_label = Label(
             text="Про розробника",
@@ -72,7 +71,7 @@ class AboutScreen(Screen):
         self.captions = []
         self.values = []
 
-        for caption, value in settings.about_info:
+        for caption, value in about_info:
             row = BoxLayout(orientation="vertical", size_hint_y=None, spacing=dp(2))
             row.bind(minimum_height=row.setter("height"))
 
@@ -93,6 +92,15 @@ class AboutScreen(Screen):
         self.add_widget(layout)
 
         self.apply_theme(theme)
+
+    def set_back_action(self, on_back):
+        """Підключає дію повернення до контролера застосунку."""
+        self._on_back = on_back
+
+    @staticmethod
+    def _call(action):
+        if action is not None:
+            action()
 
     def apply_theme(self, theme):
         """Застосовує тему до всіх елементів екрана."""

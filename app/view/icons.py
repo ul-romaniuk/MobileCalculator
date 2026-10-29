@@ -84,6 +84,7 @@ def expand_icon(size):
     alpha = [0.0] * (size * size)
 
     def to_pixels(x, y):
+        """Перетворює координати значка на координати текстури."""
         return size / 2 + x * unit, size / 2 + y * unit
 
     for x, y in SQUARES:

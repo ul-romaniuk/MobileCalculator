@@ -2,8 +2,8 @@
 
 from decimal import Decimal
 
-from operations.base import BinaryOperation
-from operations.exceptions import DivisionByZeroException
+from model.operations.base import BinaryOperation
+from model.operations.exceptions import DivisionByZeroException
 
 
 class Addition(BinaryOperation):

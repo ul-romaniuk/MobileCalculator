@@ -2,8 +2,8 @@
 
 from decimal import Decimal, InvalidOperation
 
-from models.calculator_model import CalculatorModel
-from operations.exceptions import CalculatorException
+from model.calculator_model import CalculatorModel
+from model.operations.exceptions import CalculatorException
 
 
 DIGITS = "0123456789"
@@ -44,7 +44,7 @@ class CalculatorController:
             self._apply_percent()
         elif key in OPERATORS:
             self._input_operator(key)
-        elif key in self.model.calculator.unary_operations:
+        elif self.model.supports_unary(key):
             self._apply_unary(key)
         elif key == "=":
             self._evaluate()
@@ -115,7 +115,7 @@ class CalculatorController:
         start = self._operand_start()
         operand = model.expression[start:]
         try:
-            result = model.calculator.apply_unary(symbol, Decimal(operand.replace("−", "-")))
+            result = model.apply_unary(symbol, Decimal(operand.replace("−", "-")))
         except InvalidOperation:
             return
         except CalculatorException as error:
@@ -124,7 +124,7 @@ class CalculatorController:
         text = self._format(result)
         template = UNARY_HISTORY_TEMPLATES.get(symbol)
         if template:
-            model.history.add(template.format(operand), text, recall=text)
+            model.add_history(template.format(operand), text, recall=text)
         model.expression = model.expression[:start] + text
         model.history_line = ""
         model.just_evaluated = False
@@ -136,8 +136,9 @@ class CalculatorController:
         start = self._operand_start()
         operand = model.expression[start:]
         try:
-            result = Decimal(operand.replace("−", "-")) / Decimal("100")
-        except (InvalidOperation, ZeroDivisionError):
+            value = Decimal(operand.replace("−", "-"))
+            result = model.apply_unary("%", value)
+        except (InvalidOperation, ZeroDivisionError, CalculatorException):
             return
         model.expression = model.expression[:start] + self._format(result)
         model.history_line = ""
@@ -157,19 +158,19 @@ class CalculatorController:
             return
         expression = model.expression
         try:
-            result = model.calculator.calculate(expression)
+            result = model.calculate(expression)
         except CalculatorException as error:
             model.error = str(error)
             return
         text = self._format(result)
         if text != expression:
-            model.history.add(expression, text)
+            model.add_history(expression, text)
         model.history_line = f"{expression} ="
         model.expression = text
         model.just_evaluated = True
 
     def _format(self, value):
-        return self.model.calculator.format_result(value).replace("-", "−")
+        return self.model.format_result(value).replace("-", "−")
 
     def _current_number(self):
         expression = self.model.expression

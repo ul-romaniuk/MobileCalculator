@@ -7,21 +7,21 @@ from kivy.uix.screenmanager import Screen
 from kivy.uix.scrollview import ScrollView
 from kivy.utils import get_hex_from_color
 
-from storage.history import History
-from ui.widgets import RoundedButton
+from view.widgets import RoundedButton
 
 
 class HistoryScreen(Screen):
     """Екран зі списком останніх обчислень. Дотик до запису повертає його вираз."""
 
-    def __init__(self, history: History, theme, back_callback, select_callback, clear_callback=None, **kwargs):
-        """Створює екран історії та прив'язує дії навігації й очищення."""
+    def __init__(self, theme, **kwargs):
+        """Створює порожній екран історії."""
         super().__init__(**kwargs)
-        self.history = history
         self.theme = theme
-        self.back_callback = back_callback
-        self.select_callback = select_callback
-        self.clear_callback = clear_callback
+        self._on_back = None
+        self._on_select = None
+        self._on_clear = None
+        self._on_enter = None
+        self._entries = []
 
         layout = BoxLayout(orientation="vertical", padding=dp(16), spacing=dp(12))
 
@@ -33,7 +33,7 @@ class HistoryScreen(Screen):
             size_hint_x=None,
             width=dp(110),
         )
-        self.back_button.bind(on_release=lambda _button: self.back_callback())
+        self.back_button.bind(on_release=lambda _button: self._call(self._on_back))
 
         self.title_label = Label(text="Історія", font_size=sp(22), bold=True)
 
@@ -44,7 +44,7 @@ class HistoryScreen(Screen):
             size_hint_x=None,
             width=dp(110),
         )
-        self.clear_button.bind(on_release=lambda _button: self._clear_history())
+        self.clear_button.bind(on_release=lambda _button: self._call(self._on_clear))
 
         bar.add_widget(self.back_button)
         bar.add_widget(self.title_label)
@@ -62,6 +62,23 @@ class HistoryScreen(Screen):
 
         self.apply_theme(theme)
 
+    def set_actions(self, on_back, on_select, on_clear, on_enter):
+        """Підключає дії історії до контролера застосунку."""
+        self._on_back = on_back
+        self._on_select = on_select
+        self._on_clear = on_clear
+        self._on_enter = on_enter
+
+    @staticmethod
+    def _call(action):
+        if action is not None:
+            action()
+
+    def set_entries(self, entries):
+        """Показує передані контролером записи історії."""
+        self._entries = list(entries)
+        self._rebuild()
+
     def apply_theme(self, theme):
         """Застосовує тему та перемальовує список."""
         self.theme = theme
@@ -71,19 +88,12 @@ class HistoryScreen(Screen):
         self._rebuild()
 
     def on_pre_enter(self, *args):
-        """Оновлює список перед показом екрана."""
-        self._rebuild()
-
-    def _clear_history(self):
-        if self.clear_callback is None:
-            self.history.clear()
-        else:
-            self.clear_callback()
-        self._rebuild()
+        """Просить контролер оновити історію перед показом."""
+        self._call(self._on_enter)
 
     def _rebuild(self):
         self.items.clear_widgets()
-        entries = self.history.entries
+        entries = self._entries
 
         if not entries:
             self.items.add_widget(
@@ -118,5 +128,5 @@ class HistoryScreen(Screen):
             item.bind(size=lambda widget, _size: setattr(
                 widget, "text_size", (widget.width - dp(32), widget.height)
             ))
-            item.bind(on_release=lambda _button, e=entry: self.select_callback(e))
+            item.bind(on_release=lambda _button, e=entry: self._on_select(e))
             self.items.add_widget(item)

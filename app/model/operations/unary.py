@@ -2,8 +2,8 @@
 
 from decimal import Decimal
 
-from operations.base import UnaryOperation
-from operations.exceptions import DivisionByZeroException, NegativeSqrtException
+from model.operations.base import UnaryOperation
+from model.operations.exceptions import DivisionByZeroException, NegativeSqrtException
 
 
 class Square(UnaryOperation):

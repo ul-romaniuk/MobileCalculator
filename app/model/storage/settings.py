@@ -1,6 +1,6 @@
 """Збереження обраної теми застосунку."""
 
-from storage.json_file import JsonFile
+from model.storage.json_file import JsonFile
 
 THEMES = ("dark", "light")
 
