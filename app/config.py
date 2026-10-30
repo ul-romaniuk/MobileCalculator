@@ -1,48 +1,43 @@
+
 """Налаштування застосунку та відомості для екрана «Про розробника»."""
 
+from dataclasses import dataclass
 from decimal import Decimal
 
-from pydantic import Field
-from pydantic_settings import BaseSettings, SettingsConfigDict
 
+@dataclass
+class Settings:
+    """Налаштування застосунку."""
 
-class Settings(BaseSettings):
-    """Налаштування застосунку із змінних середовища або заглушок."""
+    app_name: str = "Калькулятор"
+    app_version: str = "1.2.4"
+    developer: str = "Романюк Уляна"
+    group: str = "IT-41з"
+    university: str = (
+        "Львівський національний університет ветеринарної "
+        "медицини та біотехнологій імені Степана Ґжицького"
+    )
+    purpose: str = (
+        "Курсовий проєкт з дисципліни "
+        "«Програмування мобільних платформ»"
+    )
 
-    app_name: str = Field(default="Назва застосунку", title="Застосунок", description="Назва калькулятора")
-    app_version: str = Field(default="Версія", title="Версія", description="Версія застосунку")
-    app_description: str = Field(default="Опис застосунку", title="Опис", description="Короткий опис застосунку")
-    developer: str = Field(default="Розробник", title="Розробник", description="Ім'я розробника")
-    group: str = Field(default="Група", title="Група", description="Навчальна група")
-    university: str = Field(default="Навчальний заклад", title="Навчальний заклад", description="Назва навчального закладу")
-    purpose: str = Field(default="Призначення", title="Призначення", description="Навчальне або практичне призначення")
-    year: int = Field(default=0, title="Рік розробки", description="Рік розробки")
-
-    history_limit: int = Field(default=10, exclude=True, description="Максимальна кількість записів історії")
-    result_precision: Decimal = Field(default=Decimal("1e-10"), exclude=True, description="Точність округлення результату")
-    max_display_length: int = Field(default=16, exclude=True, description="Максимальна довжина звичайного запису")
-    scientific_threshold_high: int = Field(default=16, exclude=True, description="Верхній поріг наукового запису")
-    scientific_threshold_low: int = Field(default=-7, exclude=True, description="Нижній поріг наукового запису")
+    history_limit: int = 10
+    result_precision: Decimal = Decimal("1e-10")
+    max_display_length: int = 16
+    scientific_threshold_high: int = 16
+    scientific_threshold_low: int = -7
 
     @property
     def about_info(self) -> list[tuple[str, str]]:
-        """Формує підписи й значення полів для екрана відомостей."""
+        """Формує дані для екрана «Про розробника»."""
         return [
-            ("Застосунок", self.app_name),
-            ("Опис", self.app_description),
-            ("Версія", self.app_version),
             ("Розробник", self.developer),
             ("Група", self.group),
             ("Навчальний заклад", self.university),
             ("Призначення", self.purpose),
-            ("Рік розробки", str(self.year)),
+            ("Версія", self.app_version),
         ]
-
-    model_config = SettingsConfigDict(
-        env_file=".env",
-        env_file_encoding="utf-8",
-        extra="ignore",
-    )
 
 
 settings = Settings()

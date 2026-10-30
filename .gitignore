@@ -1,7 +1,35 @@
+# Секрети та локальні змінні середовища
 .env
+.env.*
+!.env.example
+
+# Python: байткод і кеші
 __pycache__/
 *.py[cod]
+*$py.class
 .pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Віртуальні середовища та пакування Python
 .venv/
-bin/
+venv/
+env/
+ENV/
+build/
+dist/
+*.egg-info/
+
+# Buildozer і результати Android-збірки
 .buildozer/
+bin/
+*.apk
+*.aab
+
+# IDE та системні файли
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
